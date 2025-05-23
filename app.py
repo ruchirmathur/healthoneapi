@@ -1,3 +1,4 @@
+
 import os
 import json
 import logging
@@ -96,6 +97,7 @@ document_intelligence_client = DocumentIntelligenceClient(
 # --- Endpoints ---
 
 @app.route('/applications', methods=['POST'])
+@cross_origin()
 def get_applications():
     logger.info("POST /applications called")
     data = request.get_json() or {}
@@ -139,6 +141,7 @@ documents = [
 ]
 
 @app.route('/documents/summary', methods=['POST'])
+@cross_origin()
 def summarize_document():
     logger.info("POST /documents/summary called")
     data = request.json
@@ -152,6 +155,7 @@ def summarize_document():
     return jsonify({"error": "Document not found"}), 404
 
 @app.route('/feedbacks', methods=['POST'])
+@cross_origin()
 def get_feedbacks_by_portal():
     logger.info("POST /feedbacks called")
     data = request.json or {}
@@ -189,6 +193,7 @@ def get_feedbacks_by_portal():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/memberhealthrecord', methods=['POST'])
+@cross_origin()
 def member_health_records():
     logger.info("POST /memberhealthrecord called")
     data = request.json or {}
@@ -238,6 +243,7 @@ def build_search_query(description, city=None, state=None):
     return base_query, parameters
 
 @app.route('/hospital', methods=['POST'])
+@cross_origin()
 def search_hospital():
     logger.info("POST /hospital called")
     try:
