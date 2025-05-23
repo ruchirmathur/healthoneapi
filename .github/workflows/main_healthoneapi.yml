@@ -108,6 +108,9 @@ jobs:
               {"name": "DATABASE_NAME_MHR", "value": "${{ secrets.DATABASE_NAME_MHR }}"},
               {"name": "CONTAINER_NAME_MHR", "value": "${{ secrets.CONTAINER_NAME_MHR }}"},
               
+              { "name": "GITHUB_PAT", "value": "${{ secrets.APP_PAT }}" },
+              { "name": "GITHUB_OWNER", "value": "${{ secrets.APP_OWNER }}" },
+              
               {"name": "COSMOS_DB_URL_HOSPITAL", "value": "${{ secrets.COSMOS_DB_URL_HOSPITAL }}"},
               {"name": "COSMOS_DB_KEY_HOSPITAL", "value": "${{ secrets.COSMOS_DB_KEY_HOSPITAL }}"},
               {"name": "DATABASE_NAME_HOSPITAL", "value": "${{ secrets.DATABASE_NAME_HOSPITAL }}"},
