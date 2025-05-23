@@ -117,5 +117,6 @@ jobs:
               {"name": "CONTAINER_NAME_HOSPITAL", "value": "${{ secrets.CONTAINER_NAME_HOSPITAL }}"},
               
               {"name": "DOCUMENT_URL", "value": "${{ secrets.DOCUMENT_URL }}"},
-              {"name": "DOCUMENT_KEY", "value": "${{ secrets.DOCUMENT_KEY }}"}
+              {"name": "DOCUMENT_KEY", "value": "${{ secrets.DOCUMENT_KEY }}"},
+              {"name": "API_URL", "value":"${{ github.event.inputs.API_URL }}"}
             ]
