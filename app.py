@@ -1,5 +1,6 @@
 import os
 import json
+import logging
 import requests
 from flask import Flask, request, jsonify
 from flask_cors import cross_origin
@@ -8,6 +9,13 @@ from azure.ai.documentintelligence import DocumentIntelligenceClient
 from azure.core.credentials import AzureKeyCredential
 from openai import AzureOpenAI
 from dotenv import load_dotenv
+
+# --- Logging Setup ---
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s %(threadName)s : %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
@@ -41,6 +49,8 @@ CONTAINER_NAME_HOSPITAL = os.getenv("CONTAINER_NAME_HOSPITAL")
 
 DOCUMENT_URL = os.getenv("DOCUMENT_URL")
 DOCUMENT_KEY = os.getenv("DOCUMENT_KEY")
+
+logger.info(f"API_URL: {API_URL}")
 
 app = Flask(__name__)
 
@@ -87,7 +97,9 @@ document_intelligence_client = DocumentIntelligenceClient(
 
 @app.route('/applications', methods=['POST'])
 def get_applications():
+    logger.info("POST /applications called")
     data = request.get_json() or {}
+    logger.debug(f"Request data: {data}")
     query = "SELECT * FROM c"
     conditions = []
     parameters = []
@@ -104,19 +116,21 @@ def get_applications():
     if "type" in data and data["type"]:
         conditions.append("LOWER(c.type) = @type")
         parameters.append({"name": "@type", "value": str(data["type"]).lower()})
-
     if conditions:
         query += " WHERE " + " AND ".join(conditions)
 
     try:
+        logger.debug(f"Cosmos query: {query}, parameters: {parameters}")
         items = containerapplication.query_items(
             query=query,
             parameters=parameters,
             enable_cross_partition_query=True
         )
         results = list(items)
+        logger.info(f"Returning {len(results)} application(s)")
         return jsonify(results), 200
     except exceptions.CosmosHttpResponseError as e:
+        logger.error(f"Cosmos error in /applications: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 documents = [
@@ -126,21 +140,28 @@ documents = [
 
 @app.route('/documents/summary', methods=['POST'])
 def summarize_document():
+    logger.info("POST /documents/summary called")
     data = request.json
+    logger.debug(f"Request data: {data}")
     app_id = data.get("application_id")
     doc = next((doc for doc in documents if doc["application_id"] == app_id), None)
     if doc:
+        logger.info(f"Document found for application_id {app_id}")
         return jsonify(doc)
+    logger.warning(f"Document not found for application_id {app_id}")
     return jsonify({"error": "Document not found"}), 404
 
 @app.route('/feedbacks', methods=['POST'])
 def get_feedbacks_by_portal():
+    logger.info("POST /feedbacks called")
     data = request.json or {}
+    logger.debug(f"Request data: {data}")
     portal_type = data.get("portal_type")
     start_date = data.get("start_date")
     end_date = data.get("end_date")
 
     if not portal_type or not start_date or not end_date:
+        logger.warning("Missing required field(s) in /feedbacks")
         return jsonify({"error": "Missing required field(s): portal_type, start_date, end_date"}), 400
 
     query = (
@@ -154,34 +175,43 @@ def get_feedbacks_by_portal():
     ]
 
     try:
+        logger.debug(f"Cosmos query: {query}, parameters: {parameters}")
         items = containerfeedback.query_items(
             query=query,
             parameters=parameters,
             enable_cross_partition_query=True
         )
         feedback_list = [item for item in items]
+        logger.info(f"Returning {len(feedback_list)} feedback(s)")
         return jsonify(feedback_list), 200
     except exceptions.CosmosHttpResponseError as e:
+        logger.error(f"Cosmos error in /feedbacks: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/memberhealthrecord', methods=['POST'])
 def member_health_records():
+    logger.info("POST /memberhealthrecord called")
     data = request.json or {}
+    logger.debug(f"Request data: {data}")
     member_id = data.get("member_id")
     if not member_id:
+        logger.warning("Missing required field: member_id in /memberhealthrecord")
         return jsonify({"error": "Missing required field: member_id"}), 400
 
     query = "SELECT * FROM c WHERE c.member_id=@member_id"
     parameters = [{"name": "@member_id", "value": member_id}]
     try:
+        logger.debug(f"Cosmos query: {query}, parameters: {parameters}")
         items = containermhr.query_items(
             query=query,
             parameters=parameters,
             enable_cross_partition_query=True
         )
         mhr_list = [item for item in items]
+        logger.info(f"Returning {len(mhr_list)} member health record(s)")
         return jsonify(mhr_list), 200
     except exceptions.CosmosHttpResponseError as e:
+        logger.error(f"Cosmos error in /memberhealthrecord: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 def build_search_query(description, city=None, state=None):
@@ -204,15 +234,18 @@ def build_search_query(description, city=None, state=None):
         parameters.append({"name": "@state", "value": state})
     if location_filters:
         base_query += " AND " + " AND ".join(location_filters)
+    logger.debug(f"Built search query: {base_query}, parameters: {parameters}")
     return base_query, parameters
 
 @app.route('/hospital', methods=['POST'])
 def search_hospital():
+    logger.info("POST /hospital called")
     try:
         data = request.get_json()
-        app.logger.debug(f"Request data: {data}")
+        logger.debug(f"Request data: {data}")
 
         if not data:
+            logger.warning("Missing JSON body in /hospital")
             return jsonify({"error": "Missing JSON body"}), 400
 
         description = data.get('description')
@@ -220,10 +253,11 @@ def search_hospital():
         state = data.get('state')
 
         if not description:
+            logger.warning("Description is required in /hospital")
             return jsonify({"error": "Description is required"}), 400
 
         query, params = build_search_query(description, city, state)
-        app.logger.debug(f"Executing query: {query}\nParams: {params}")
+        logger.debug(f"Executing query: {query}\nParams: {params}")
 
         items = list(containerhospital.query_items(
             query=query,
@@ -231,16 +265,17 @@ def search_hospital():
             enable_cross_partition_query=True
         ))
 
+        logger.info(f"Returning {len(items)} hospital(s)")
         return jsonify(items), 200
-
     except exceptions.CosmosHttpResponseError as e:
-        app.logger.error(f"Cosmos error: {str(e)}")
+        logger.error(f"Cosmos error in /hospital: {str(e)}")
         return jsonify({"error": f"Database error: {str(e)}"}), 500
     except Exception as e:
-        app.logger.error(f"Server error: {str(e)}")
+        logger.error(f"Server error in /hospital: {str(e)}")
         return jsonify({"error": f"Server error: {str(e)}"}), 500
 
 def analyze_marriage_certificate(url: str):
+    logger.info("Analyzing marriage certificate")
     try:
         response = requests.get(url)
         response.raise_for_status()
@@ -263,11 +298,13 @@ def analyze_marriage_certificate(url: str):
                 "spouse2": process_spouse_data(fields, "Spouse2")
             }
             break
+        logger.info("Marriage certificate analysis successful")
         return {
             "document_url": url,
             "details": extracted_data
         }
     except Exception as e:
+        logger.error(f"Marriage certificate analysis error: {str(e)}")
         return {"error": str(e)}
 
 def get_field_value(field):
@@ -288,49 +325,64 @@ def process_spouse_data(fields, prefix):
 @app.route('/api/document-review', methods=['POST'])
 @cross_origin()
 def document_review():
+    logger.info("POST /api/document-review called")
     data = request.get_json()
+    logger.debug(f"Request data: {data}")
     if not data or 'url' not in data:
+        logger.warning("Missing PDF URL in /api/document-review")
         return jsonify({"error": "Missing PDF URL in request"}), 400
 
     result = analyze_marriage_certificate(data['url'])
     if 'error' in result:
+        logger.error(f"Error in document analysis: {result['error']}")
         return jsonify(result), 500
 
+    logger.info("Returning document review result")
     return jsonify(result)
 
 # --- Azure Functions for LLM Tooling ---
 
 def search_app_by_id(application_id=None, status=None, name=None, type_=None):
+    logger.info("search_app_by_id called")
     try:
         payload = {}
         if application_id not in [None, "", []]:
             try:
                 payload["application_id"] = int(application_id)
             except (ValueError, TypeError):
+                logger.error("application_id must be an integer")
                 return {"error": "application_id must be an integer"}
         if status: payload["status"] = status
         if name: payload["name"] = name
         if type_: payload["type"] = type_
+        logger.debug(f"Payload for /applications: {payload}")
         response = requests.post(f"{API_URL}/applications", json=payload)
         response.raise_for_status()
+        logger.info("search_app_by_id successful")
         return response.json()
     except requests.RequestException as e:
+        logger.error(f"search_app_by_id error: {str(e)}")
         return {"error": str(e)}
 
 def summarize_documents(application_id):
+    logger.info("summarize_documents called")
     try:
         response = requests.post(
             f"{API_URL}/documents/summary",
             json={"application_id": application_id}
         )
         response.raise_for_status()
+        logger.info("summarize_documents successful")
         return response.json()
     except requests.RequestException as e:
+        logger.error(f"summarize_documents error: {str(e)}")
         return {"error": str(e)}
 
 def get_feedbacks_by_portal(portal_type, start_date, end_date):
+    logger.info("get_feedbacks_by_portal called")
     try:
         if not all([portal_type, start_date, end_date]):
+            logger.warning("Missing required fields in get_feedbacks_by_portal")
             return {"error": "Missing required fields: portal_type, start_date, end_date"}
         response = requests.post(
             f"{API_URL}/feedbacks",
@@ -341,35 +393,42 @@ def get_feedbacks_by_portal(portal_type, start_date, end_date):
             }
         )
         response.raise_for_status()
+        logger.info("get_feedbacks_by_portal successful")
         return [{
             k: v for k, v in feedback.items()
             if k not in {"patterns", "sentiment", "potential_fixes"}
         } for feedback in response.json()]
     except requests.RequestException as e:
+        logger.error(f"get_feedbacks_by_portal error: {str(e)}")
         return {"error": str(e)}
 
 def member_health_records_llm(member_id):
+    logger.info("member_health_records_llm called")
     try:
         response = requests.post(
             f"{API_URL}/memberhealthrecord",
             json={"member_id": member_id}
         )
         response.raise_for_status()
+        logger.info("member_health_records_llm successful")
         return response.json()
     except requests.RequestException as e:
+        logger.error(f"member_health_records_llm error: {str(e)}")
         return {"error": str(e)}
 
 def hospital(description=None, city=None, state=None):
+    logger.info("hospital function called")
     try:
         if not description:
+            logger.warning("Procedure/service description is required in hospital function")
             return {"error": "Procedure/service description is required"}
-
         payload = {"description": description}
         if city:
             payload["city"] = city
         if state:
             payload["state"] = state
 
+        logger.debug(f"Payload for /hospital: {payload}")
         response = requests.post(f"{API_URL}/hospital", json=payload)
         response.raise_for_status()
         hospital_data = response.json()
@@ -402,8 +461,10 @@ def hospital(description=None, city=None, state=None):
                                 }
                             }
                             filtered_results.append(result)
+        logger.info("hospital function completed successfully")
         return filtered_results if filtered_results else {"info": "No matching procedures found"}
     except requests.RequestException as e:
+        logger.error(f"hospital function error: {str(e)}")
         return {"error": str(e)}
 
 azure_functions = [
@@ -486,6 +547,7 @@ azure_functions = [
 ]
 
 def azure_function_dispatcher(function_name, function_args):
+    logger.info(f"azure_function_dispatcher called for function: {function_name}")
     try:
         if function_name == "search_app_by_id":
             return search_app_by_id(
@@ -510,11 +572,14 @@ def azure_function_dispatcher(function_name, function_args):
                 city=function_args.get("city"),
                 state=function_args.get("state")
             )
+        logger.error(f"Unknown function: {function_name}")
         return {"error": "Unknown function"}
     except KeyError as e:
+        logger.error(f"Missing parameter in azure_function_dispatcher: {str(e)}")
         return {"error": f"Missing parameter: {str(e)}"}
 
 def truncate_messages_to_fit(messages, max_prompt_tokens=3500):
+    logger.debug("truncate_messages_to_fit called")
     while sum(len(m.get("content", "")) for m in messages) > max_prompt_tokens and len(messages) > 1:
         messages.pop(0)
     return messages
@@ -552,8 +617,10 @@ combined_system_prompt = (
 @app.route("/api/ask", methods=["POST"])
 @cross_origin()
 def ask():
+    logger.info("POST /api/ask called")
     try:
         user_input = request.json["user_input"]
+        logger.debug(f"user_input: {user_input}")
         messages = [
             {"role": "system", "content": combined_system_prompt},
             {"role": "user", "content": user_input}
@@ -580,6 +647,7 @@ def ask():
             for tool_call in msg.tool_calls:
                 fn_name = tool_call.function.name
                 fn_args = json.loads(tool_call.function.arguments)
+                logger.info(f"Calling function {fn_name} with args {fn_args}")
                 fn_result = azure_function_dispatcher(fn_name, fn_args)
 
                 new_messages.append({
@@ -600,6 +668,7 @@ def ask():
             content = json.loads(msg.content)
             results = []
 
+        logger.info("/api/ask returning response")
         return jsonify({
             "results": results,
             "final_response": content.get("final_response", ""),
@@ -607,6 +676,7 @@ def ask():
         })
 
     except Exception as e:
+        logger.error(f"Error in /api/ask: {str(e)}")
         return jsonify({
             "error": str(e),
             "results": [],
@@ -614,4 +684,5 @@ def ask():
         }), 500
 
 if __name__ == '__main__':
+    logger.info("Starting Flask app")
     app.run(host='127.0.0.1', port=8000)
