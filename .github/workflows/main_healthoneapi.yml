@@ -9,6 +9,10 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      API_URL:
+        description: 'API URL'
+        required: true
 
 jobs:
   build:
@@ -64,7 +68,6 @@ jobs:
       - name: Unzip artifact for deployment
         run: unzip release.zip
 
-      
       - name: Login to Azure
         uses: azure/login@v2
         with:
@@ -78,4 +81,38 @@ jobs:
         with:
           app-name: 'healthoneapi'
           slot-name: 'Production'
-          
+
+      - name: 'Configure App Settings'
+        uses: azure/appservice-settings@v1
+        with:
+          app-name: 'healthoneapi'
+          app-settings-json: |
+            [
+              {"name": "AZURE_OPEN_AI_ENDPOINT", "value": "${{ secrets.AZURE_OPEN_AI_ENDPOINT }}"},
+              {"name": "AZURE_OPEN_AI_KEY", "value": "${{ secrets.AZURE_OPEN_AI_KEY }}"},
+              {"name": "API_VERSION", "value": "${{ secrets.API_VERSION }}"},
+              {"name": "DEPLOYMENT_NAME", "value": "${{ secrets.DEPLOYMENT_NAME }}"},
+              
+              {"name": "COSMOS_DB_URL_APPLICATION", "value": "${{ secrets.COSMOS_DB_URL_APPLICATION }}"},
+              {"name": "COSMOS_DB_KEY_APPLICATION", "value": "${{ secrets.COSMOS_DB_KEY_APPLICATION }}"},
+              {"name": "DATABASE_NAME_APPLICATION", "value": "${{ secrets.DATABASE_NAME_APPLICATION }}"},
+              {"name": "CONTAINER_NAME_APPLICATION", "value": "${{ secrets.CONTAINER_NAME_APPLICATION }}"},
+              
+              {"name": "COSMOS_DB_URL_FEEDBACK", "value": "${{ secrets.COSMOS_DB_URL_FEEDBACK }}"},
+              {"name": "COSMOS_DB_KEY_FEEDBACK", "value": "${{ secrets.COSMOS_DB_KEY_FEEDBACK }}"},
+              {"name": "DATABASE_NAME_FEEDBACK", "value": "${{ secrets.DATABASE_NAME_FEEDBACK }}"},
+              {"name": "CONTAINER_NAME_FEEDBACK", "value": "${{ secrets.CONTAINER_NAME_FEEDBACK }}"},
+              
+              {"name": "COSMOS_DB_URL_MHR", "value": "${{ secrets.COSMOS_DB_URL_MHR }}"},
+              {"name": "COSMOS_DB_KEY_MHR", "value": "${{ secrets.COSMOS_DB_KEY_MHR }}"},
+              {"name": "DATABASE_NAME_MHR", "value": "${{ secrets.DATABASE_NAME_MHR }}"},
+              {"name": "CONTAINER_NAME_MHR", "value": "${{ secrets.CONTAINER_NAME_MHR }}"},
+              
+              {"name": "COSMOS_DB_URL_HOSPITAL", "value": "${{ secrets.COSMOS_DB_URL_HOSPITAL }}"},
+              {"name": "COSMOS_DB_KEY_HOSPITAL", "value": "${{ secrets.COSMOS_DB_KEY_HOSPITAL }}"},
+              {"name": "DATABASE_NAME_HOSPITAL", "value": "${{ secrets.DATABASE_NAME_HOSPITAL }}"},
+              {"name": "CONTAINER_NAME_HOSPITAL", "value": "${{ secrets.CONTAINER_NAME_HOSPITAL }}"},
+              
+              {"name": "DOCUMENT_URL", "value": "${{ secrets.DOCUMENT_URL }}"},
+              {"name": "DOCUMENT_KEY", "value": "${{ secrets.DOCUMENT_KEY }}"}
+            ]
