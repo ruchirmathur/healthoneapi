@@ -21,7 +21,7 @@ DEPLOYMENT_NAME = os.getenv("DEPLOYMENT_NAME", "gpt-4.1")
 
 COSMOS_DB_URL_APPLICATION = os.getenv("COSMOS_DB_URL_APPLICATION")
 COSMOS_DB_KEY_APPLICATION = os.getenv("COSMOS_DB_KEY_APPLICATION")
-DATABASE_NAME = os.getenv("DATABASE_NAME")
+DATABASE_NAME_APPLICATION = os.getenv("DATABASE_NAME_APPLICATION")
 CONTAINER_NAME_APPLICATION = os.getenv("CONTAINER_NAME_APPLICATION")
 
 COSMOS_DB_URL_FEEDBACK = os.getenv("COSMOS_DB_URL_FEEDBACK")
@@ -52,7 +52,7 @@ openai_client = AzureOpenAI(
 )
 
 clientapplication = CosmosClient(COSMOS_DB_URL_APPLICATION, COSMOS_DB_KEY_APPLICATION)
-databaseapplication = clientapplication.create_database_if_not_exists(id=DATABASE_NAME)
+databaseapplication = clientapplication.create_database_if_not_exists(id=DATABASE_NAME_APPLICATION)
 containerapplication = databaseapplication.create_container_if_not_exists(
     id=CONTAINER_NAME_APPLICATION,
     partition_key=PartitionKey(path="/application_id"),
