@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 
-API_URL = "http://127.0.0.1:8000"
+API_URL = "http://localhost:8000"
 AZURE_OPEN_AI_ENDPOINT = os.getenv("AZURE_OPEN_AI_ENDPOINT")
 AZURE_OPEN_AI_KEY = os.getenv("AZURE_OPEN_AI_KEY")
 API_VERSION = os.getenv("API_VERSION")
