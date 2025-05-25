@@ -10,7 +10,7 @@ on:
       - main
   workflow_dispatch:
     inputs:
-      API_URL:
+      api_url:
         description: 'API URL'
         required: true
 
@@ -118,5 +118,5 @@ jobs:
               
               {"name": "DOCUMENT_URL", "value": "${{ secrets.DOCUMENT_URL }}"},
               {"name": "DOCUMENT_KEY", "value": "${{ secrets.DOCUMENT_KEY }}"},
-              {"name": "API_URL", "value":"${{ github.event.inputs.API_URL }}"}
+              {"name": "API_URL", "value":"${{ github.event.inputs.api_url }}"}
             ]
