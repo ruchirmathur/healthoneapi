@@ -528,7 +528,7 @@ def azure_function_dispatcher(function_name, function_args):
         )
     return {"error": "Unknown function"}
 
-def truncate_messages_to_fit(messages, max_prompt_tokens=3500):
+def truncate_messages_to_fit(messages, max_prompt_tokens=6000):
     while sum(len(m.get("content", "")) for m in messages) > max_prompt_tokens and len(messages) > 1:
         messages.pop(0)
     return messages
@@ -548,7 +548,7 @@ combined_system_prompt = (
     "- Compare prices across providers. "
     "- Highlight best value options. "
     "- Include payer names, settings, and effective dates. "
-    "- Output JSON with: price_comparison (hospital, plan, price, and setting), best_prices (address, hospital, plan, price, and setting), cost_saving_tips. "
+    "- Output JSON with: array of price_comparison (hospital, plan, price, and setting), array of best_prices (address, hospital, plan, price, and setting), array of cost_saving_tips. "
 
     "For queries about claims, benefits, appointments, medications,dependents,allergies or immunization data: "
     "- Only include the relevant information in the JSON output. Always include address, birth_date,  coverage_effective_date, coverage_end_date, email, employer, gender, group_number,member_id, member_name, pcp_id, pcp_name, phone, plan_covers_procedure, plan_product_name, plan_type, subscriber, dependents in analysis field"
@@ -579,7 +579,7 @@ def ask():
             tools=azure_functions,
             tool_choice="auto",
             response_format={"type": "json_object"},
-            max_tokens=1024
+            max_tokens=4000
         )
         msg = response.choices[0].message
 
@@ -606,7 +606,7 @@ def ask():
                 model=DEPLOYMENT_NAME,
                 messages=new_messages,
                 response_format={"type": "json_object"},
-                max_tokens=1024
+                max_tokens=4000
             )
             content = json.loads(final_response.choices[0].message.content)
         else:
